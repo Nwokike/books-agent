@@ -9,8 +9,8 @@ from ddgs import DDGS
 from google.adk.agents import Agent, Context
 from google.genai import types
 from google import genai
-from utils.resilience import ResilientGemini
-from mcp_client import call_mcp_tool
+from ..utils.resilience import ResilientGemini
+from ..mcp_client import call_mcp_tool
 from .vision import execute_vision_analysis
 
 __all__ = ["cover_agent"]

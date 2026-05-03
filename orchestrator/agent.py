@@ -10,15 +10,15 @@ from google.genai import types
 from google.adk.agents import Agent, SequentialAgent, Context
 from google.adk.tools import AgentTool
 
-from utils.resilience import ResilientGemini
-from schema import BookState
+from .utils.resilience import ResilientGemini
+from .schema import BookState
 
-from discovery.agent import discovery_agent
-from metadata.agent import metadata_agent
-from researcher.agent import researcher_agent
-from writer.agent import writer_loop
-from publisher.agent import publisher_agent
-from cover.agent import cover_agent
+from .discovery.agent import discovery_agent
+from .metadata.agent import metadata_agent
+from .researcher.agent import researcher_agent
+from .writer.agent import writer_loop
+from .publisher.agent import publisher_agent
+from .cover.agent import cover_agent
 
 # --- Wrapping Sub-Agents as Tools ---
 discovery_tool = AgentTool(discovery_agent)

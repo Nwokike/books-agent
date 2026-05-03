@@ -2,8 +2,8 @@ import asyncio
 import json
 from ddgs import DDGS
 from google.adk.agents import Agent
-from utils.resilience import ResilientGemini
-from mcp_client import call_mcp_tool
+from ..utils.resilience import ResilientGemini
+from ..mcp_client import call_mcp_tool
 
 __all__ = ["discovery_agent"]
 

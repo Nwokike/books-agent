@@ -1,7 +1,7 @@
 import asyncio
 from ddgs import DDGS
 from google.adk.agents import Agent
-from utils.resilience import ResilientGemini
+from ..utils.resilience import ResilientGemini
 import httpx
 from bs4 import BeautifulSoup
 

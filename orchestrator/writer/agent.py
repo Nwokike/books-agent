@@ -2,10 +2,10 @@ import json
 import uuid
 from google.genai import types
 from google.adk.agents import Agent, LoopAgent, BaseAgent, Context
-from utils.resilience import ResilientGemini
+from ..utils.resilience import ResilientGemini
 from google.adk.events import Event, EventActions
 from typing import List, Optional
-from schema import BookRecommendationCreate, EditorJsContent, EditorJsBlock, EditorJsBlockData
+from ..schema import BookRecommendationCreate, EditorJsContent, EditorJsBlock, EditorJsBlockData
 
 __all__ = ["writer_loop"]
 

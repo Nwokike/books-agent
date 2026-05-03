@@ -65,13 +65,13 @@ AVAILABLE DATA:
 - Research Record: {research_context}
 
 STRICT WRITING RULES:
-1. ZERO FLUFF: Never write introductory sentences, conclusions, or generic cultural overviews. Go straight to the specific context of the book.
+1. ZERO FLUFF: Never write introductory sentences, conclusions, or generic cultural overviews. Go straight to the specific facts.
 2. NO EM-DASHES: You are strictly forbidden from using em-dashes (—). Use commas, colons, or parentheses instead.
-3. CONTENT STRUCTURE: Separate your thoughts into distinct paragraphs. A good recommendation includes a brief summary, historical/cultural context from the research, and why the book is significant.
-4. ORGANIC CITATIONS: If the Research agent provides a source URL, weave it naturally and flexibly into the narrative (e.g., citing it inline, parenthetically). Always use an HTML anchor tag with the actual title.
+3. CONTENT STRUCTURE: Separate your thoughts into distinct paragraphs. You MUST include exactly one paragraph dedicated to the author's biography and their cultural/literary significance.
+4. ORGANIC CITATIONS: If the Research agent provides a source URL, weave it naturally into the narrative using HTML anchor tags with the actual title. Do not cite every single sentence; prioritize citing unique or primary claims.
 5. NO FORCED CITATIONS: If no specific URL is provided for a fact, do NOT try to force a citation.
-6. FORMATTING: NEVER use literal newline characters (\\n). Use HTML `<br><br>` for line breaks if needed within a paragraph. NEVER use Markdown formatting like `**` or `*`. If you must emphasize text, use standard HTML tags like `<b>` or `<i>`.
-7. TOOL CALL: Call `draft_book` with the title, author, any available isbn/publication_year from the raw metadata, and your formulated content texts (as a list of strings, one string per paragraph).
+6. FORMATTING: NEVER use literal newline characters (\n). Use HTML `<br><br>` for line breaks between paragraphs. NEVER use Markdown formatting like `**` or `*`. Use standard HTML tags like `<b>` or `<i>` for emphasis.
+7. TOOL CALL: Call `draft_book` with the title, author, any available isbn/publication_year, and your formulated content texts (as a list of strings, one string per paragraph).
 """.strip()
 )
 
@@ -92,9 +92,10 @@ AVAILABLE DRAFT: {draft_notes}
 
 STRICT REJECTION CRITERIA:
 1. REJECT if the draft contains ANY em-dashes (—). This is an absolute rule.
-2. REJECT if any note contains generalities, introductory filler, or generic encyclopedic definitions.
-3. REJECT if citations feel robotic, repetitive, or are awkwardly forced when no actual URL was provided.
-4. REJECT if invalid formatting is used: literal `\\n` characters instead of `<br><br>`, `**bold**` or `*italics*` instead of HTML tags.
+2. REJECT if the draft contains conversational filler (e.g., "It is important to note," "In summary"). Factual transitions (e.g., "Regarding the author," "In a historical context") are PERMITTED.
+3. REJECT if the author's biography is missing or does not have its own dedicated paragraph.
+4. REJECT if citations feel robotic, repetitive, or are awkwardly forced (e.g., identical structure used for 3+ consecutive sentences).
+5. REJECT if invalid formatting is used: literal `\\n` characters instead of `<br><br>`, `**bold**` or `*italics*` instead of HTML tags.
 
 OUTPUT: Reply with APPROVED if the text is flawless. Otherwise, list the specific rejection reasons.
 """.strip()
@@ -125,7 +126,7 @@ escalation_checker = CriticEscalationChecker()
 
 writer_loop = LoopAgent(
     name="WriterLoop",
-    max_iterations=3,
+    max_iterations=5,
     sub_agents=[writer, critic, escalation_checker],
     description="Loop Agent: Generates and evaluates the book recommendation."
 )

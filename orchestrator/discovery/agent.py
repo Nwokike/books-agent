@@ -92,10 +92,11 @@ WORKFLOW INSTRUCTIONS:
 5. If it returns "NOT_FOUND", stop immediately.
 
 OUTPUT:
-When you have found a book that is "NOT_FOUND" in the database, output EXACTLY the title and author in JSON format:
+When you have found a book that is "NOT_FOUND" in the database, output EXACTLY the title, author, and optional source URL in JSON format:
 {
   "title": "Exact Title Here",
-  "author": "Exact Author Here"
+  "author": "Exact Author Here",
+  "external_url": "Authoritative link to OpenLibrary, Google Books, or Amazon if found, otherwise 'NONE'"
 }
 
 Do not output anything else. No conversational filler. Just the JSON.

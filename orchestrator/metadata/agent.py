@@ -54,13 +54,15 @@ async def mcp_bulk_search(books_json_array: str) -> str:
 
 # --- State Injection Tool ---
 
-async def save_raw_metadata_to_state(ctx: Context, metadata_json: str) -> str:
-    """Saves the completely unedited, raw metadata to the agent's state. 
+async def save_raw_metadata_to_state(ctx: Context, metadata_json: str, external_url: str = "NONE") -> str:
+    """Saves the completely unedited, raw metadata and source URL to the state.
     This MUST be the final step after successfully finding the book data."""
     try:
         data = json.loads(metadata_json)
         ctx.state["raw_metadata"] = data
-        return "SUCCESS: Raw metadata saved to state."
+        if external_url != "NONE":
+            ctx.state["external_url"] = external_url
+        return "SUCCESS: Raw metadata and source URL saved to state."
     except Exception as e:
         return f"ERROR saving to state: {str(e)}"
 
@@ -89,10 +91,10 @@ STRICT WORKFLOW:
 2. Call `mcp_find_book` FIRST to confirm the book exists before doing your main job which is use `mcp_get_metadata` to get the metadata of the book.
 3. If and only if the mcp tools fail, use `duckduckgo_web_search` to find all available information about the book provided to you.
 4. If the book does not exist anywhere simply report exactly: "book not found after extensive research, try to get another book from the discovery agent".
-5. You MUST save the final, best data payload to state. Use `save_raw_metadata_to_state` and pass the raw JSON string you received. DO NOT EDIT OR SUMMARIZE THE DATA. Pass the exact raw JSON object you got from the MCP tool (or construct a raw JSON object from DDGS facts if MCP failed).
-6. Once you receive "SUCCESS: Raw metadata saved to state.", you are done. Simply reply "Metadata gathering complete."
-
-CRITICAL: You MUST use `save_raw_metadata_to_state` to succeed.
+5. You MUST save the final, best data payload to state. Use `save_raw_metadata_to_state`. 
+   - Pass the exact raw JSON string you received. 
+   - If the MCP tool returned an authoritative source URL (like `openlibrary_url` or a Google Books link), pass it as the `external_url` argument.
+6. Once you receive "SUCCESS: Raw metadata and source URL saved to state.", you are done. Simply reply "Metadata gathering complete."
 """.strip()
 )
 

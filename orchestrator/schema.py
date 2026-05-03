@@ -33,6 +33,7 @@ class BookState(BaseModel):
     
     # Metadata fields
     raw_metadata: Dict[str, Any] = Field(default_factory=dict)
+    external_url: str = "NONE"
     
     # Cover validation
     media_path: str = "NONE"

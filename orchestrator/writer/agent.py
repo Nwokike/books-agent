@@ -22,6 +22,10 @@ async def draft_book(ctx: Context, book_title: str, author: str, content_texts: 
                 )
             )
             
+        ext_url = ctx.state.get("external_url")
+        if ext_url == "NONE":
+            ext_url = None
+            
         draft = BookRecommendationCreate(
             book_title=book_title,
             author=author,
@@ -29,7 +33,7 @@ async def draft_book(ctx: Context, book_title: str, author: str, content_texts: 
             isbn=isbn,
             publication_year=publication_year,
             publisher=publisher,
-            external_url=None, # Filled by publisher if needed or passed
+            external_url=ext_url, 
             cover_image=ctx.state.get("verified_cover_url"), 
             content_json=EditorJsContent(blocks=blocks)
         )

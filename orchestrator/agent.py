@@ -42,11 +42,12 @@ def orchestrator_init(**kwargs) -> None:
         for k, v in state_dict.items():
             ctx.state[k] = v
 
-async def set_target_book(ctx: Context, title: str, author: str) -> str:
-    """Updates the state with the discovered target book."""
+async def set_target_book(ctx: Context, title: str, author: str, external_url: str = "NONE") -> str:
+    """Updates the state with the discovered target book and optional source URL."""
     ctx.state["target_title"] = title
     ctx.state["target_author"] = author
-    return f"State updated to target: {title} by {author}"
+    ctx.state["external_url"] = external_url
+    return f"State updated to target: {title} by {author} (Source: {external_url})"
 
 root_agent = Agent(
     name="Orchestrator",
@@ -66,7 +67,7 @@ GOAL: Run the full autonomous loop to ingest new books into the database without
 STRICT WORKFLOW:
 1. DISCOVERY: Call `DiscoveryAgent` tool, tell it exactly to find a book related to Igbo NOT in the database.
    - It will return a JSON string with the title and author.
-2. UPDATE STATE: Call `set_target_book` with the discovered title and author so the pipeline knows the target.
+2. UPDATE STATE: Call `set_target_book` with the discovered title, author, and the `external_url` (if provided by Discovery) so the pipeline knows the target and where to research.
 3. METADATA GATHERING: Call `MetadataAgent` tool, providing it the target title and author you just found.
    - It will fetch exhaustive metadata and sync it to the state automatically.
 4. COVER ACQUISITION & VERIFICATION: Call `CoverAgent` tool. This agent will now handle downloading and verifying the cover from the gathered metadata or finding an alternative.

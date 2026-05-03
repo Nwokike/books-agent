@@ -7,3 +7,4 @@ wheels/
 .env
 temp/
 *.adk/
+scratch/

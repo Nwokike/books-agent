@@ -59,10 +59,11 @@ You are researching beyond the basic metadata (publication year, basic descripti
 
 AVAILABLE DATA:
 - Target Book: {target_title} by {target_author}
+- External URL: {external_url}
 - Raw Metadata: {raw_metadata}
 
 STRICT WORKFLOW:
-1. ORIGINAL URL SCRAPING: If the metadata contains a relevant external URL (e.g., an Open Library link), call `fetch_website_content`.
+1. ORIGINAL URL SCRAPING: If the `External URL` provided in the data is NOT "NONE", call `fetch_website_content` immediately using that URL.
 2. EXHAUSTIVE WEB SEARCH: You MUST call `duckduckgo_web_search` multiple times. Search for critical reception, historical context of when the book was written, and biographical facts about the author's life that relate to the book.
 3. OUTPUT: Output ALL the exact text/snippets caught from both the URL and searches, untouched and un-rewritten, with their Source Link/URLs. 
 

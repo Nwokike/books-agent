@@ -36,9 +36,10 @@ books_pipeline_tool = AgentTool(books_pipeline, skip_summarization=True)
 
 # --- Orchestrator ---
 
-def orchestrator_init(ctx: Context, callback_context: dict = None) -> None:
+def orchestrator_init(**kwargs) -> None:
+    ctx = kwargs.get("context")
     # Initialize the state schema if it doesn't exist yet
-    if "target_title" not in ctx.state:
+    if ctx and "target_title" not in ctx.state:
         state_dict = BookState().model_dump()
         for k, v in state_dict.items():
             ctx.state[k] = v

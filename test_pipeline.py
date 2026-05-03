@@ -38,7 +38,7 @@ async def main():
                         print(f"[{event.author}] {part.text}")
                     elif part.thought:
                         print(f"[{event.author} THOUGHT] {part.thought}")
-            if event.actions and event.actions.tool_calls:
+            if hasattr(event, "actions") and event.actions and getattr(event.actions, "tool_calls", None):
                 for call in event.actions.tool_calls:
                     print(f"[{event.author} SYSTEM] Calling tool {call.name}(...)")
     except Exception as e:

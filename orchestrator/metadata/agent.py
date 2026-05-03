@@ -2,8 +2,8 @@ import asyncio
 import json
 from ddgs import DDGS
 from google.adk.agents import Agent, Context
-from ..utils.resilience import ResilientGemini
-from ..mcp_client import call_mcp_tool
+from utils.resilience import ResilientGemini
+from mcp_client import call_mcp_tool
 
 __all__ = ["metadata_agent"]
 
@@ -47,23 +47,6 @@ async def mcp_get_metadata(title: str, author: str = "", isbn: str = "") -> str:
     res = await call_mcp_tool("book-metadata", "get_metadata", kwargs)
     return json.dumps(res)
 
-async def mcp_get_cover(title: str, author: str = "", isbn: str = "", verify_dimensions: bool = False) -> str:
-    """Get the best available cover image URL for a book."""
-    kwargs = {"title": title, "verify_dimensions": verify_dimensions}
-    if author: kwargs["author"] = author
-    if isbn: kwargs["isbn"] = isbn
-    res = await call_mcp_tool("book-metadata", "get_cover", kwargs)
-    return json.dumps(res)
-
-async def mcp_download_cover(title: str, author: str = "", isbn: str = "", save_path: str = "") -> str:
-    """Download the best available cover image and save to disk."""
-    kwargs = {"title": title}
-    if author: kwargs["author"] = author
-    if isbn: kwargs["isbn"] = isbn
-    if save_path: kwargs["save_path"] = save_path
-    res = await call_mcp_tool("book-metadata", "download_cover", kwargs)
-    return json.dumps(res)
-
 async def mcp_bulk_search(books_json_array: str) -> str:
     """Search for multiple books at once. Input must be a JSON array string."""
     res = await call_mcp_tool("book-metadata", "bulk_search", {"books": books_json_array})
@@ -85,15 +68,13 @@ metadata_agent = Agent(
     name="MetadataAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemini-3-flash-preview"]
+        fallbacks=["models/gemma-4-26b-a4b-it"]
     ),
     description="Agent: Gathers exhaustive, unedited raw metadata for a discovered book using MCP tools.",
     tools=[
         mcp_search_book, 
         mcp_find_book, 
         mcp_get_metadata, 
-        mcp_get_cover, 
-        mcp_download_cover, 
         mcp_bulk_search,
         duckduckgo_web_search,
         save_raw_metadata_to_state
@@ -105,12 +86,14 @@ GOAL: You are given a target title and author. You must use your tools to fetch 
 
 STRICT WORKFLOW:
 1. Identify the input title and author from the user prompt.
-2. Call `mcp_find_book` FIRST. It is the most comprehensive tool.
-3. If `mcp_find_book` fails or lacks data, try `mcp_search_book` or `mcp_get_metadata`.
-4. If the MCP tools return an error or cannot find the book, USE `duckduckgo_web_search` to find basic information about the book.
-5. You MUST save the final, best data payload to state. Use `save_raw_metadata_to_state` and pass the raw JSON string you received. DO NOT EDIT OR SUMMARIZE THE DATA. Pass the exact raw JSON object you got from the MCP tool (or construct a raw JSON object from DDGS facts if MCP completely failed).
+2. Call `mcp_find_book` FIRST to confirm the book exists before doing your main job which is use `mcp_get_metadata` to get the metadata of the book.
+3. If and only if the mcp tools fail, use `duckduckgo_web_search` to find all available information about the book provided to you.
+4. If the book does not exist anywhere simply report exactly: "book not found after extensive research, try to get another book from the discovery agent".
+5. You MUST save the final, best data payload to state. Use `save_raw_metadata_to_state` and pass the raw JSON string you received. DO NOT EDIT OR SUMMARIZE THE DATA. Pass the exact raw JSON object you got from the MCP tool (or construct a raw JSON object from DDGS facts if MCP failed).
 6. Once you receive "SUCCESS: Raw metadata saved to state.", you are done. Simply reply "Metadata gathering complete."
 
 CRITICAL: You MUST use `save_raw_metadata_to_state` to succeed.
 """.strip()
 )
+
+root_agent = metadata_agent

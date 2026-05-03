@@ -1,7 +1,7 @@
 import asyncio
 from ddgs import DDGS
 from google.adk.agents import Agent
-from ..utils.resilience import ResilientGemini
+from utils.resilience import ResilientGemini
 import httpx
 from bs4 import BeautifulSoup
 
@@ -10,7 +10,8 @@ __all__ = ["researcher_agent"]
 async def fetch_website_content(url: str) -> str:
     """Scrapes all readable body text content from a given URL, ignoring scripts and styles."""
     try:
-        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0) as client:
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
+        async with httpx.AsyncClient(follow_redirects=True, timeout=15.0, headers=headers) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, 'html.parser')
@@ -44,8 +45,8 @@ async def duckduckgo_web_search(query: str) -> str:
 researcher_agent = Agent(
     name="ResearcherAgent",
     model=ResilientGemini(
-        model="models/gemini-3-flash-preview",
-        fallbacks=["models/gemini-3.1-flash-lite-preview", "models/gemma-4-31b-it"]
+        model="models/gemma-4-31b-it",
+        fallbacks=["models/gemma-4-26b-a4b-it"]
     ),
     description="Agent: Gathers maximum supplemental context about the book and its author.",
     tools=[fetch_website_content, duckduckgo_web_search],

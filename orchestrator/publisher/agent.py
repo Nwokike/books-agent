@@ -1,7 +1,7 @@
 import json
 from google.adk.agents import Agent
-from ..utils.resilience import ResilientGemini
-from ..mcp_client import call_mcp_tool
+from utils.resilience import ResilientGemini
+from mcp_client import call_mcp_tool
 
 __all__ = ["publisher_agent"]
 

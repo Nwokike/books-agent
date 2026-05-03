@@ -2,14 +2,14 @@ import json
 import uuid
 from google.genai import types
 from google.adk.agents import Agent, LoopAgent, BaseAgent, Context
-from ..utils.resilience import ResilientGemini
+from utils.resilience import ResilientGemini
 from google.adk.events import Event, EventActions
 from typing import List, Optional
-from ..schema import BookRecommendationCreate, EditorJsContent, EditorJsBlock, EditorJsBlockData
+from schema import BookRecommendationCreate, EditorJsContent, EditorJsBlock, EditorJsBlockData
 
 __all__ = ["writer_loop"]
 
-def draft_book(ctx: Context, book_title: str, author: str, content_texts: List[str], isbn: Optional[str] = None, publication_year: Optional[int] = None, publisher: Optional[str] = None) -> str:
+async def draft_book(ctx: Context, book_title: str, author: str, content_texts: List[str], isbn: Optional[str] = None, publication_year: Optional[int] = None, publisher: Optional[str] = None) -> str:
     """Takes a list of finalized content paragraphs, packages them into Editor.js json format, and saves the draft."""
     try:
         blocks = []
@@ -44,7 +44,7 @@ writer = Agent(
     name="WriterAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemini-3.1-flash-lite-preview", "models/gemma-4-26b-a4b-it"]
+        fallbacks=["models/gemma-4-26b-a4b-it"]
     ),
     description="Agent: Synthesizes research into a concise, purely factual book recommendation without fluff.",
     tools=[draft_book],

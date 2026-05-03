@@ -2,8 +2,8 @@ import asyncio
 import json
 from ddgs import DDGS
 from google.adk.agents import Agent
-from ..utils.resilience import ResilientGemini
-from ..mcp_client import call_mcp_tool
+from utils.resilience import ResilientGemini
+from mcp_client import call_mcp_tool
 
 __all__ = ["discovery_agent"]
 
@@ -21,6 +21,11 @@ async def mcp_find_book(title: str, author: str = "", isbn: str = "") -> str:
     if author: kwargs["author"] = author
     if isbn: kwargs["isbn"] = isbn
     res = await call_mcp_tool("book-metadata", "find_book", kwargs)
+    return json.dumps(res)
+
+async def mcp_bulk_search(books_json_array: str) -> str:
+    """Search for multiple books at once. Input must be a JSON array string."""
+    res = await call_mcp_tool("book-metadata", "bulk_search", {"books": books_json_array})
     return json.dumps(res)
 
 async def duckduckgo_web_search(query: str) -> str:
@@ -69,19 +74,19 @@ async def check_database(title: str, author: str) -> str:
 discovery_agent = Agent(
     name="DiscoveryAgent",
     model=ResilientGemini(
-        model="models/gemini-3.1-flash-lite-preview",
-        fallbacks=["models/gemini-3-flash-preview"]
+        model="models/gemma-4-31b-it",
+        fallbacks=["models/gemma-4-26b-a4b-it"]
     ),
-    description="Agent: Discovers culturally significant Igbo/African literature not yet in the database.",
-    tools=[mcp_find_book, mcp_search_book, duckduckgo_web_search, check_database],
+    description="Agent: Discovers culturally significant Igbo literature not yet in the database.",
+    tools=[mcp_find_book, mcp_search_book, mcp_bulk_search, duckduckgo_web_search, check_database],
     instruction="""
 ROLE: Elite Literary Scout for Igbo Archives.
 
-GOAL: Find a culturally significant book related to Igbo people, culture, history, or written by an Igbo/African author that is NOT currently in the database.
+GOAL: Find a culturally significant book related to Igbo people, culture, history, or written by an Igbo author that is NOT currently in the database.
 
 WORKFLOW INSTRUCTIONS:
-1. You have multiple tools to discover books. Your primary tools to find books are `mcp_find_book` and `mcp_search_book`. You can use them to explore literature.
-2. If you are not getting what you want from the MCP tools (e.g., getting only generic results or no Igbo-specific results), you have the choice to use `duckduckgo_web_search` to search for Igbo-related books (e.g., "important Igbo books", "books by Nigerian authors").
+1. You have multiple tools to discover books. Your primary tools to find books are `mcp_find_book` and `mcp_search_book`. You must try them first, only use `duckduckgo_web_search` if it is not working as expected.
+2. If you are not getting what you want from the MCP tools, you have the choice to use `duckduckgo_web_search` to confirm or search for Igbo-related books.
 3. Once you pick ONE specific book, USE `check_database` to see if we already have it. Provide the title and author.
 4. If it returns "EXISTS", pick a different book.
 5. If it returns "NOT_FOUND", stop immediately.
@@ -96,3 +101,6 @@ When you have found a book that is "NOT_FOUND" in the database, output EXACTLY t
 Do not output anything else. No conversational filler. Just the JSON.
 """.strip()
 )
+
+root_agent = discovery_agent
+    

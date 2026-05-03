@@ -46,7 +46,7 @@ async def duckduckgo_image_search(query: str) -> str:
         return f"Image search failed: {str(e)}"
 
 async def download_alternative_cover(ctx: Context, image_url: str) -> str:
-    """Downloads an alternative cover from a URL and saves it to state, overriding the bad one."""
+    """Downloads an alternative cover from a URL. Returns the file path."""
     target_title = ctx.state.get("target_title", "Unknown")
     temp_path = f"temp/alt_cover_{target_title.replace(' ', '_')}.jpg"
     os.makedirs("temp", exist_ok=True)
@@ -58,12 +58,16 @@ async def download_alternative_cover(ctx: Context, image_url: str) -> str:
             with open(temp_path, "wb") as f:
                 f.write(resp.content)
         
-        ctx.state["media_path"] = temp_path
-        ctx.state["verified_cover_url"] = image_url
-        ctx.state["media_report"] = "Cover manually acquired via DuckDuckGo fallback and assumed valid."
-        return f"SUCCESS: Alternative cover downloaded from {image_url} and saved to state."
+        return json.dumps({"saved": temp_path, "source_url": image_url})
     except Exception as e:
-        return f"Failed to download alternative cover: {str(e)}"
+        return json.dumps({"error": f"Failed to download alternative cover: {str(e)}"})
+
+async def save_verified_cover_to_state(ctx: Context, verified_url: str, file_path: str, report: str) -> str:
+    """Updates the state with the final, verified cover information. This must be your final step."""
+    ctx.state["verified_cover_url"] = verified_url
+    ctx.state["media_path"] = file_path
+    ctx.state["media_report"] = report
+    return "SUCCESS: Verified cover information saved to state."
 
 cover_agent = Agent(
     name="CoverAgent",
@@ -77,7 +81,8 @@ cover_agent = Agent(
         mcp_download_cover, 
         execute_vision_analysis, 
         duckduckgo_image_search, 
-        download_alternative_cover
+        download_alternative_cover,
+        save_verified_cover_to_state
     ],
     instruction="""
 ROLE: Cover Art Specialist and Visual Auditor.
@@ -90,13 +95,14 @@ STRICT WORKFLOW:
    - If a `cover_url` exists in `raw_metadata`, call `mcp_download_cover` using that URL or the book details.
    - If no URL exists, or if you need a better one, call `mcp_get_cover` first, then `mcp_download_cover`.
 3. VERIFICATION:
-   - Once downloaded, call `execute_vision_analysis` passing the path returned by the download tool.
+   - For ANY downloaded image (from MCP or fallback), you MUST call `execute_vision_analysis` passing the path returned by the tool.
 4. FALLBACK:
-   - If `mcp_download_cover` fails OR `execute_vision_analysis` returns "REJECTED", you MUST use `duckduckgo_image_search` to find a high-resolution cover.
-   - Pick the best URL and use `download_alternative_cover`.
+   - If `mcp_download_cover` fails OR `execute_vision_analysis` returns "REJECTED" for the primary cover, you MUST use `duckduckgo_image_search` to find a high-resolution cover.
+   - Pick the best URL, use `download_alternative_cover`, and then call `execute_vision_analysis` AGAIN on the new path.
 5. FINALIZATION:
-   - Once a cover is verified or a fallback is successfully downloaded, update `ctx.state["verified_cover_url"]` with the source URL, if you tried everything and still couldn't find a cover say "COULD NOT FIND A COVER, USE DISCOVERY AGENT TO FIND ANOTHER BOOK".
-   - Reply "Cover successfully acquired and verified if successful."
+   - Once a cover is successfully verified, you MUST call `save_verified_cover_to_state` with the source URL, the local file path, and the vision report.
+   - If you have exhausted all tools and still cannot find a verified cover, output EXACTLY: "COULD NOT FIND A COVER, USE DISCOVERY AGENT TO FIND ANOTHER BOOK".
+   - Once you receive "SUCCESS: Verified cover information saved to state.", simply reply "Cover successfully acquired and verified."
 """.strip()
 )
 

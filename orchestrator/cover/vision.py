@@ -67,10 +67,7 @@ async def execute_vision_analysis(ctx: Context, file_path: str) -> str:
                 if "REJECTED" in result_text.upper():
                     return f"COVER REJECTED. Explanation: {result_text}"
                 
-                # Hoist success to the universal media keys
-                ctx.state["media_path"] = file_path
-                ctx.state["media_report"] = result_text
-                return f"COVER VERIFIED. Report: {result_text}"
+                return result_text
             except Exception:
                 continue
                 

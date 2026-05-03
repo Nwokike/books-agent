@@ -1,41 +1,173 @@
-import os
 import sys
+import os
+import asyncio
+import uuid
 from dotenv import load_dotenv
 
-# Load env variables from root directory first
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    
+from fastapi import FastAPI, Request
+from google.adk.runners import Runner
+from google.adk.sessions import InMemorySessionService
+from telegram import Update, Bot
+from telegram.ext import ApplicationBuilder, MessageHandler, CommandHandler, filters, ContextTypes
+from google.genai import types
+
 load_dotenv()
 
-# We need the telegram framework from ADK
-from google.adk.ui.telegram import (
-    TelegramBotClient,
-    TelegramFrameworkConfig,
-    create_telegram_bot_app
-)
-from google.adk.runners import Runner
-from google.adk.sessions.in_memory_session_service import InMemorySessionService
-
+# --- Agent Imports ---
 from orchestrator.agent import root_agent
 
-if not os.environ.get("TELEGRAM_BOT_TOKEN"):
-    print("WARNING: TELEGRAM_BOT_TOKEN is not set.")
+session_service = InMemorySessionService()
 
-config = TelegramFrameworkConfig(
-    client=TelegramBotClient(
-        bot_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
-    ),
-    runner=Runner(
-        app_name="books-agent",
-        agent=root_agent,
-        session_service=InMemorySessionService(),
-    ),
-    server_address="0.0.0.0",
-    server_port=8082,  # Running on 8082 to avoid conflicts with ArchiveAgent (8080) and NotesAgent (8081)
-    webhook_path="/webhook",
+runner = Runner(
+    app_name="books-agent",
+    agent=root_agent,
+    session_service=session_service
 )
 
-app = create_telegram_bot_app(config)
+# --- State Management ---
+active_sessions = {}
+
+# --- Main Pipeline Execution ---
+async def safe_send_message(bot: Bot, chat_id: int, text: str):
+    """Sends a message to Telegram, splitting it into chunks if it exceeds the 4000 character limit."""
+    if not text:
+        return
+    
+    # Telegram's hard limit is 4096. We use 4000 to be safe with formatting.
+    chunk_size = 4000
+    
+    # Split the text into manageable chunks
+    chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+    
+    for chunk in chunks:
+        try:
+            await bot.send_message(chat_id=chat_id, text=chunk)
+            # Sleep briefly to avoid triggering Telegram's rate limits when sending multiple chunks
+            await asyncio.sleep(0.3)
+        except Exception as e:
+            print(f"Failed to send message: {e}")
+
+# --- Main Pipeline Execution ---
+async def run_pipeline(update: Update, bot: Bot):
+    chat_id = update.effective_chat.id
+    msg_text = update.message.text.strip() if update.message.text else ""
+    
+    # Handle the /new command
+    if msg_text.startswith("/new"):
+        active_sessions[chat_id] = f"book_run_{uuid.uuid4().hex[:8]}"
+        await safe_send_message(
+            bot=bot,
+            chat_id=chat_id, 
+            text="🔄 Memory cleared. Send a message like 'Start' to begin the autonomous book-ingestion pipeline."
+        )
+        return
+
+    # Ensure the user has an active session ID
+    if chat_id not in active_sessions:
+        active_sessions[chat_id] = f"book_run_{uuid.uuid4().hex[:8]}"
+    
+    current_session_id = active_sessions[chat_id]
+    user_id = str(chat_id)
+    
+    msg_content = types.Content(role="user", parts=[types.Part.from_text(text=msg_text)])
+    
+    # Explicitly check and create the session in memory before running
+    try:
+        current_session = await session_service.get_session(
+            app_name="books-agent", 
+            user_id=user_id, 
+            session_id=current_session_id
+        )
+        if not current_session:
+            await session_service.create_session(
+                app_name="books-agent", 
+                user_id=user_id, 
+                session_id=current_session_id
+            )
+    except Exception:
+        await session_service.create_session(
+            app_name="books-agent", 
+            user_id=user_id, 
+            session_id=current_session_id
+        )
+
+    try:
+        # Execute the pipeline using the dynamic session ID
+        async for event in runner.run_async(user_id=user_id, session_id=current_session_id, new_message=msg_content):
+            author = event.author
+            
+            # Send messages back to Telegram (ignore internal loops unless it has text)
+            if author and author not in ["user", "system"]:
+                event_text = ""
+                if event.content and event.content.parts:
+                    # Cleanly extract text parts, ignoring function calls/nulls
+                    parts = []
+                    for part in event.content.parts:
+                        text_val = getattr(part, 'text', None)
+                        if text_val:
+                            parts.append(text_val)
+                    event_text = "".join(parts).strip()
+
+                if event_text:
+                    await safe_send_message(
+                        bot=bot,
+                        chat_id=chat_id, 
+                        text=f"{author.upper()}:\n{event_text}"
+                    )
+                    
+                    if author == "Orchestrator" and "pipeline completed successfully" in event_text.lower():
+                        await safe_send_message(
+                            bot=bot,
+                            chat_id=chat_id,
+                            text="✅ Book ingestion completed successfully!\nSend /new to start on a new book."
+                        )
+
+    except Exception as e:
+        error_msg = f"Error: {str(e)}"
+        await safe_send_message(bot, chat_id, error_msg)
+
+
+# --- Webhook Mode (Render Web Service) ---
+app = FastAPI()
+bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+tg_bot = Bot(token=bot_token) if bot_token else None
+
+@app.post("/webhook")
+async def telegram_webhook(request: Request):
+    payload = await request.json()
+    update = Update.de_json(payload, tg_bot)
+    
+    if update.message and update.message.text:
+        asyncio.create_task(run_pipeline(update, tg_bot))
+            
+    return {"status": "ok"}
+
+@app.get("/")
+def health():
+    return {"status": "Books Ingestion Agent is ACTIVE", "mode": "Webhook"}
+
+# --- Polling Mode (Local Dev) ---
+async def handle_polling(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await run_pipeline(update, context.bot)
 
 if __name__ == "__main__":
-    import uvicorn
-    # Use standard Uvicorn config for polling or webhook dev
-    uvicorn.run(app, host="0.0.0.0", port=8082)
+    if os.getenv("RENDER") or os.getenv("TELEGRAM_WEBHOOK_URL"):
+        import uvicorn
+        port = int(os.environ.get("PORT", 8082))
+        uvicorn.run(app, host="0.0.0.0", port=port)
+    else:
+        if bot_token:
+            from telegram.request import HTTPXRequest
+            print("Starting Telegram Bot (Polling Mode)...")
+            request = HTTPXRequest(connect_timeout=30, read_timeout=30)
+            tg_app = ApplicationBuilder().token(bot_token).request(request).build()
+            
+            tg_app.add_handler(CommandHandler("new", handle_polling))
+            tg_app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_polling))
+            
+            tg_app.run_polling()
+        else:
+            print("CRITICAL: TELEGRAM_BOT_TOKEN not found.")

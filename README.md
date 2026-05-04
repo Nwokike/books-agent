@@ -20,5 +20,5 @@ The system follows a clinical **Sequential Pipeline** leveraging Google ADK:
 ## 🛠️ Tech Stack
 - **Framework**: Google ADK
 - **LLM Engine**: Google Gemma 4
-- **Metadata**: [`book-metadata-mcp`](https://github.com/vetnet183/book-metadata-mcp) (Google Books & Open Library)
+- **Metadata**: [`book-metadata-mcp`](https://github.com/vetnet183/book-metadata-mcp) 
 

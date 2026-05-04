@@ -2,6 +2,7 @@ import os
 import httpx
 import json
 import asyncio
+import mimetypes
 from dotenv import load_dotenv
 from typing import Dict, Any, Optional
 
@@ -28,6 +29,7 @@ async def call_mcp_tool(server_name: str, tool_name: str, arguments: Optional[Di
     """
     Routes MCP tool calls. 'book-metadata' calls stay local; others go to Igbo Archives.
     Includes built-in asynchronous backoff to prevent API rate limiting.
+    Supports file uploads for 'create_books' and 'create_archives'.
     """
     await asyncio.sleep(1.5)
 
@@ -52,22 +54,66 @@ async def call_mcp_tool(server_name: str, tool_name: str, arguments: Optional[Di
         "Content-Type": "application/json"
     }
 
-    # Standard JSON-RPC payload for MCP via HTTP
-    payload = {
-        "jsonrpc": "2.0",
-        "id": 1,
-        "method": "tools/call",
-        "params": {
-            "name": tool_name,
-            "arguments": arguments or {}
-        }
-    }
-
     try:
-        # Extended timeout to 45 seconds to account for heavier payloads
         async with httpx.AsyncClient(timeout=45.0) as client:
+            # --- Robust File Upload Logic ---
+            if tool_name in ["create_books", "create_archives"] and "body" in (arguments or {}):
+                body = arguments["body"].copy()
+                
+                # Check for local file paths in common media fields
+                media_key = None
+                media_raw = None
+                for key in ["cover_image", "image", "audio", "video", "document"]:
+                    if key in body and isinstance(body[key], str) and body[key].startswith("file://"):
+                        media_key = key
+                        media_raw = body[key]
+                        break
+                
+                if media_key and media_raw:
+                    file_path = media_raw.replace("file://", "", 1)
+                    if os.path.exists(file_path):
+                        # Pop the field from JSON body as it will be sent as multipart/form-data
+                        body.pop(media_key)
+                        
+                        mime_type, _ = mimetypes.guess_type(file_path)
+                        if not mime_type:
+                            mime_type = "application/octet-stream"
+
+                        with open(file_path, "rb") as f:
+                            files = {media_key: (os.path.basename(file_path), f, mime_type)}
+                            
+                            # Determine the correct REST endpoint
+                            resource = "books" if tool_name == "create_books" else "archives"
+                            rest_url = MCP_URL.replace("/api/mcp/", f"/api/v1/{resource}/")
+                            
+                            mp_headers = headers.copy()
+                            mp_headers.pop("Content-Type", None) # httpx sets this for multipart
+                            
+                            # JSON-serialize nested dictionaries for multipart compatibility
+                            # DRF MultiPartParser expects JSON strings for JSONField
+                            for key, value in body.items():
+                                if isinstance(value, dict):
+                                    body[key] = json.dumps(value)
+                            
+                            # Send as Multipart Form Data
+                            response = await client.post(rest_url, data=body, files=files, headers=mp_headers)
+                            response.raise_for_status()
+                            
+                            resp_json = response.json()
+                            item_id = resp_json.get("id") or resp_json.get("slug") or "Unknown"
+                            return {"id": item_id, "raw_response": resp_json}
+
+            # --- Standard JSON-RPC fallback ---
+            payload = {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": tool_name,
+                    "arguments": arguments or {}
+                }
+            }
             
-            # Standard JSON-RPC call
             response = await client.post(MCP_URL, json=payload, headers=headers)
             response.raise_for_status()
             

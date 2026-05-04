@@ -1,5 +1,6 @@
 import json
 import uuid
+import os
 from google.genai import types
 from google.adk.agents import Agent, LoopAgent, BaseAgent, Context
 from ..utils.resilience import ResilientGemini
@@ -26,6 +27,10 @@ async def draft_book(ctx: Context, book_title: str, author: str, content_texts: 
         if ext_url == "NONE":
             ext_url = None
             
+        # Use local file path with file:// prefix if available, for robust upload in mcp_client
+        media_path = ctx.state.get("media_path")
+        cover_image = f"file://{media_path}" if media_path and media_path != "NONE" else ctx.state.get("verified_cover_url")
+
         draft = BookRecommendationCreate(
             book_title=book_title,
             author=author,
@@ -34,7 +39,7 @@ async def draft_book(ctx: Context, book_title: str, author: str, content_texts: 
             publication_year=publication_year,
             publisher=publisher,
             external_url=ext_url, 
-            cover_image=ctx.state.get("verified_cover_url"), 
+            cover_image=cover_image, 
             content_json=EditorJsContent(blocks=blocks)
         )
         
@@ -52,7 +57,7 @@ writer = Agent(
     ),
     description="Agent: Synthesizes research into a concise, purely factual book recommendation without fluff.",
     tools=[draft_book],
-    output_key="draft_notes",
+    output_key="writer_log",
     instruction="""
 ROLE: Lead Book Reviewer and Literary Synthesizer.
 
@@ -63,15 +68,17 @@ AVAILABLE DATA:
 - Raw Metadata: {raw_metadata}
 - Cover Analysis: {media_report}
 - Research Record: {research_context}
+- Live Taxonomy: Use the taxonomy data provided in the session history (look for LIVE TAXONOMY DATA) to check if the author already exists in the database.
 
 STRICT WRITING RULES:
 1. ZERO FLUFF: Never write introductory sentences, conclusions, or generic cultural overviews. Go straight to the specific facts.
 2. NO EM-DASHES: You are strictly forbidden from using em-dashes (—). Use commas, colons, or parentheses instead.
-3. CONTENT STRUCTURE: Separate your thoughts into distinct paragraphs. You MUST include exactly one paragraph dedicated to the author's biography and their cultural/literary significance.
-4. ORGANIC CITATIONS: If the Research agent provides a source URL, weave it naturally into the narrative using HTML anchor tags with the actual title. Do not cite every single sentence; prioritize citing unique or primary claims.
-5. NO FORCED CITATIONS: If no specific URL is provided for a fact, do NOT try to force a citation.
-6. FORMATTING: NEVER use literal newline characters (\n). Use HTML `<br><br>` for line breaks between paragraphs. NEVER use Markdown formatting like `**` or `*`. Use standard HTML tags like `<b>` or `<i>` for emphasis.
-7. TOOL CALL: Call `draft_book` with the title, author, any available isbn/publication_year, and your formulated content texts (as a list of strings, one string per paragraph).
+3. AUTHOR CONSISTENCY: Search the "Live Taxonomy" for a case-insensitive match of the author's name. If a match is found, you MUST use the EXACT string from the database (e.g., if you found "Chinua Achebe" but the database has "Achebe, Chinua", use the database version). If multiple authors are listed in the database but you only found one, stick to your researched author unless the database version is clearly the same person.
+4. CONTENT STRUCTURE: Separate your thoughts into distinct paragraphs. You MUST include exactly one paragraph dedicated to the author's biography and their cultural/literary significance.
+5. ORGANIC CITATIONS: If the Research agent provides a source URL, weave it naturally into the narrative using HTML anchor tags with the actual title. Do not cite every single sentence; prioritize citing unique or primary claims.
+6. NO FORCED CITATIONS: If no specific URL is provided for a fact, do NOT try to force a citation.
+7. FORMATTING: NEVER use literal newline characters (\n). Use HTML `<br><br>` for line breaks between paragraphs. NEVER use Markdown formatting like `**` or `*`. Use standard HTML tags like `<b>` or `<i>` for emphasis.
+8. TOOL CALL: Call `draft_book` with the title, author (as determined by the taxonomy check), any available isbn/publication_year, and your formulated content texts (as a list of strings, one string per paragraph).
 """.strip()
 )
 

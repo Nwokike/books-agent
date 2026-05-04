@@ -19,6 +19,7 @@ from .researcher.agent import researcher_agent
 from .writer.agent import writer_loop
 from .publisher.agent import publisher_agent
 from .cover.agent import cover_agent
+from .taxonomy.agent import taxonomy_mapper
 
 # --- Wrapping Sub-Agents as Tools ---
 discovery_tool = AgentTool(discovery_agent)
@@ -28,7 +29,7 @@ cover_tool = AgentTool(cover_agent)
 # --- Pipeline ---
 books_pipeline = SequentialAgent(
     name="BooksPipeline",
-    sub_agents=[researcher_agent, writer_loop, publisher_agent],
+    sub_agents=[researcher_agent, taxonomy_mapper, writer_loop, publisher_agent],
     description="Pipeline: Researches, writes, and publishes the book record."
 )
 

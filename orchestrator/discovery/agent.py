@@ -49,8 +49,13 @@ async def check_database(title: str, author: str) -> str:
         if "error" in response:
             return f"Error checking database: {response['error']}"
             
-        books = response.get("items", [])
+        # The Igbo Archives API returns books in the 'results' key
+        books = response.get("results", []) or response.get("items", [])
         
+        if not books and response.get("count", 0) > 0:
+            # This handles cases where results might be elsewhere or empty unexpectedly
+            return "NOT_FOUND: No books retrieved from database, but count is non-zero. Possible API change."
+
         # Simple normalization check
         t_norm = title.lower().strip()
         a_norm = author.lower().strip()
@@ -58,14 +63,19 @@ async def check_database(title: str, author: str) -> str:
         for book in books:
             db_title = book.get("title", "").lower().strip()
             db_author = book.get("author", "").lower().strip()
+            db_b_title = book.get("book_title", "").lower().strip()
             
-            if t_norm in db_title or db_title in t_norm:
-                return "EXISTS: A book with a very similar title is already in the database."
+            # Title match (check both 'title' and 'book_title' fields)
+            title_match = (t_norm in db_title or db_title in t_norm or 
+                           t_norm in db_b_title or db_b_title in t_norm)
             
-            if book.get("book_title", ""):
-                db_b_title = book.get("book_title", "").lower().strip()
-                if t_norm in db_b_title or db_b_title in t_norm:
-                    return "EXISTS: A book with a very similar title is already in the database."
+            if title_match:
+                # If title matches, check if author also matches to be sure
+                if a_norm and db_author and (a_norm in db_author or db_author in a_norm):
+                    return f"EXISTS: '{title}' by '{author}' is already in the database."
+                
+                # If only title matches, it's still likely a duplicate in this context
+                return f"EXISTS: A book with a very similar title ('{db_title}') is already in the database."
 
         return "NOT_FOUND: Book does not exist in the database. Safe to proceed."
     except Exception as e:

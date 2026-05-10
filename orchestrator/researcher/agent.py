@@ -46,7 +46,11 @@ researcher_agent = Agent(
     name="ResearcherAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemma-4-26b-a4b-it"]
+        fallbacks=[
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="Agent: Gathers maximum supplemental context about the book and its author.",
     tools=[fetch_website_content, duckduckgo_web_search],

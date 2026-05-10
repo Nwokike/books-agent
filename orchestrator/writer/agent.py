@@ -53,7 +53,11 @@ writer = Agent(
     name="WriterAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemma-4-26b-a4b-it"]
+        fallbacks=[
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="Agent: Synthesizes research into a concise, purely factual book recommendation without fluff.",
     tools=[draft_book],
@@ -86,7 +90,11 @@ critic = Agent(
     name="CriticAgent",
     model=ResilientGemini(
         model="models/gemma-4-26b-a4b-it",
-        fallbacks=["models/gemma-4-31b-it"]
+        fallbacks=[
+            "models/gemma-4-31b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="Agent: A ruthless gatekeeper that validates drafts against strict standards.",
     output_key="critic_status",

@@ -85,7 +85,11 @@ discovery_agent = Agent(
     name="DiscoveryAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemma-4-26b-a4b-it"]
+        fallbacks=[
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="Agent: Discovers culturally significant Igbo literature not yet in the database.",
     tools=[mcp_find_book, mcp_search_book, mcp_bulk_search, duckduckgo_web_search, check_database],

@@ -54,7 +54,11 @@ root_agent = Agent(
     name="Orchestrator",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemma-4-26b-a4b-it"]
+        fallbacks=[
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="The top-level orchestrator that completely automates book ingestion.",
     tools=[discovery_tool, metadata_tool, set_target_book, cover_tool],

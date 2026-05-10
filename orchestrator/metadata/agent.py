@@ -70,7 +70,11 @@ metadata_agent = Agent(
     name="MetadataAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemma-4-26b-a4b-it"]
+        fallbacks=[
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="Agent: Gathers exhaustive, unedited raw metadata for a discovered book using MCP tools.",
     tools=[

@@ -21,7 +21,11 @@ publisher_agent = Agent(
     name="PublisherAgent",
     model=ResilientGemini(
         model="models/gemma-4-31b-it",
-        fallbacks=["models/gemma-4-26b-a4b-it"]
+        fallbacks=[
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
     ),
     description="Agent: The final record publisher that submits the book recommendation.",
     tools=[execute_mcp_publish],

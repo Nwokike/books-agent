@@ -47,7 +47,12 @@ async def execute_vision_analysis(ctx: Context, file_path: str) -> str:
             "4. Be lenient: if the cover is abstract but seems plausible, accept it."
         )
         
-        models_to_try = ["models/gemma-4-31b-it", "models/gemma-4-26b-a4b-it"]
+        models_to_try = [
+            "models/gemma-4-31b-it", 
+            "models/gemma-4-26b-a4b-it",
+            "models/gemini-3.1-flash-lite-preview",
+            "models/gemini-3-flash-preview"
+        ]
         
         for model_name in models_to_try:
             try:

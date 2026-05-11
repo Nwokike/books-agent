@@ -1,6 +1,7 @@
 import json
 import uuid
 import os
+import re
 from google.genai import types
 from google.adk.agents import Agent, LoopAgent, BaseAgent, Context
 from ..utils.resilience import ResilientGemini
@@ -15,21 +16,31 @@ async def draft_book(ctx: Context, book_title: str, author: str, content_texts: 
     try:
         blocks = []
         for text in content_texts:
+            # FIX: Strip out rogue backslashes and double quotes inside href attributes created by the AI
+            cleaned_text = re.sub(r'href=["\']?\\?["\']?(https?://[^"\'>\s]+)\\?["\']?["\']?', r'href="\1"', text)
+            
             blocks.append(
                 EditorJsBlock(
                     id=f"block_{uuid.uuid4().hex[:8]}",
                     type="paragraph",
-                    data=EditorJsBlockData(text=text)
+                    data=EditorJsBlockData(text=cleaned_text)
                 )
             )
             
         ext_url = ctx.state.get("external_url")
         if ext_url == "NONE":
             ext_url = None
+        elif ext_url:
+            # FIX: Clean standalone external URLs
+            ext_url = ext_url.strip(' "\'\\')
             
         # Use local file path with file:// prefix if available, for robust upload in mcp_client
         media_path = ctx.state.get("media_path")
         cover_image = f"file://{media_path}" if media_path and media_path != "NONE" else ctx.state.get("verified_cover_url")
+        
+        # FIX: Clean cover image URLs
+        if isinstance(cover_image, str):
+            cover_image = cover_image.strip(' "\'\\')
 
         draft = BookRecommendationCreate(
             book_title=book_title,
